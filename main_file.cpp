@@ -50,6 +50,7 @@ GLuint texRock    = 0;
 
 // Modele wczytywane przez Assimp
 AssimpModel volcanoModel;
+AssimpModel rockModel;
 
 // Skala wulkanu (model jest znormalizowany do max wymiaru = 1)
 const float VOLCANO_SCALE = 5.0f;
@@ -57,11 +58,13 @@ const float VOLCANO_SCALE = 5.0f;
 // Pozycje kamieni wokol wulkanu (x, z, skala, rotacja_y)
 struct RockPlacement { float x, z, scale, rotY; };
 static const RockPlacement rockPlacements[] = {
-    {  4.2f,  0.0f, 0.55f, 0.4f },
-    { -3.8f,  1.6f, 0.45f, 1.2f },
-    {  2.5f, -3.6f, 0.40f, 2.7f },
-    { -2.2f, -3.9f, 0.60f, 0.9f },
-    {  3.7f,  3.3f, 0.35f, 1.8f }
+    {  4.4f,  0.2f, 0.90f, 0.4f },
+    { -4.0f,  1.6f, 0.75f, 1.2f },
+    {  2.6f, -3.8f, 0.70f, 2.7f },
+    { -2.4f, -4.1f, 1.00f, 0.9f },
+    {  3.9f,  3.4f, 0.60f, 1.8f },
+    { -4.5f, -1.2f, 0.85f, 3.4f },
+    {  1.5f,  4.3f, 0.55f, 5.1f }
 };
 static const int rockCount = sizeof(rockPlacements) / sizeof(rockPlacements[0]);
 
@@ -133,9 +136,10 @@ void initOpenGLProgram(GLFWwindow* window) {
 
     texGround  = loadTexture("bricks_diffuse.png");
     texVolcano = loadTexture("volcano/textures/Volcano_AOAmbient_Occlusion.png");
-    texRock    = loadTexture("bricks_diffuse.png");
+    texRock    = loadTexture("renders/rock-low-polygon/textures/DefaultMaterial_Base_color.png");
 
     volcanoModel.load("volcano/source/Volcano_Lowpoly.fbx");
+    rockModel.load   ("renders/rock-low-polygon/source/Rock/Rock.fbx");
 }
 
 void freeOpenGLProgram(GLFWwindow* window) {
@@ -208,16 +212,16 @@ void drawScene(GLFWwindow* window) {
     glUniformMatrix4fv(spLambertTextured->u("M"), 1, false, glm::value_ptr(M));
     volcanoModel.draw();
 
-    // === KAMIENIE wokol wulkanu ===
+    // === KAMIENIE wokol wulkanu (FBX z Assimp) ===
     glBindTexture(GL_TEXTURE_2D, texRock);
     for (int i = 0; i < rockCount; i++) {
         const RockPlacement& r = rockPlacements[i];
         M = glm::mat4(1.0f);
-        M = glm::translate(M, glm::vec3(r.x, r.scale * 0.6f, r.z));
+        M = glm::translate(M, glm::vec3(r.x, 0.0f, r.z));
         M = glm::rotate   (M, r.rotY, glm::vec3(0.0f, 1.0f, 0.0f));
         M = glm::scale    (M, glm::vec3(r.scale));
         glUniformMatrix4fv(spLambertTextured->u("M"), 1, false, glm::value_ptr(M));
-        Models::rock.draw();
+        rockModel.draw();
     }
 
     glfwSwapBuffers(window);

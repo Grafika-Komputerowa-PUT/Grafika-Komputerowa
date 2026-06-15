@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(\"/c/Program Files/Microsoft Visual Studio/2022/Community/MSBuild/Current/Bin/MSBuild.exe\" \"C:\\\\Users\\\\kotel\\\\Desktop\\\\Grfika\\\\gkiw_nst_02_win\\\\gkiw_nst_02_win\\\\gkiw_nst_02_win.sln\" //p:Configuration=Debug //p:Platform=x64 //nologo //verbosity:minimal)"
+    ]
+  }
+}

@@ -31,7 +31,6 @@
     <ClInclude Include="teapot.h" />
     <ClInclude Include="terrain.h" />
     <ClInclude Include="torus.h" />
-    <ClInclude Include="rocks.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="assimp_model.cpp" />
@@ -44,7 +43,6 @@
     <ClCompile Include="teapot.cpp" />
     <ClCompile Include="terrain.cpp" />
     <ClCompile Include="torus.cpp" />
-    <ClCompile Include="rocks.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="f_constant.glsl" />
