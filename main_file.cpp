@@ -23,7 +23,6 @@ Powszechnej Licencji Publicznej GNU.
 #include <stdio.h>
 #include <math.h>
 #include "constants.h"
-#include "allmodels.h"
 #include "lodepng.h"
 #include "shaderprogram.h"
 #include "assimp_model.h"
@@ -57,8 +56,10 @@ GLuint texEmissive = 0;
 // === MODELE ===
 AssimpModel volcanoModel;
 AssimpModel rockModel;
+AssimpModel terrainModel;
 
 const float VOLCANO_SCALE = 5.0f;
+const float TERRAIN_SCALE = 22.0f;   // szerokosci terenu po normalizacji
 const glm::vec3 CRATER_POS = glm::vec3(0.0f, VOLCANO_SCALE * 0.95f, 0.0f);
 
 // === SYSTEMY ERUPCJI ===
@@ -221,13 +222,14 @@ void initOpenGLProgram(GLFWwindow* window) {
     glfwSetScrollCallback     (window, scroll_callback);
     glfwSetKeyCallback        (window, key_callback);
 
-    texGround   = loadTexture("bricks_diffuse.png");
+    texGround   = loadTexture("renders/terrain/textures/Arazi_Base_Color.png");
     texVolcano  = loadTexture("volcano/textures/Volcano_AOAmbient_Occlusion.png");
     texRock     = loadTexture("renders/rock-low-polygon/textures/DefaultMaterial_Base_color.png");
     texEmissive = loadTexture("volcano/textures/emissive_01.png");
 
     volcanoModel.load("volcano/source/Volcano_Lowpoly.fbx");
     rockModel.load   ("renders/rock-low-polygon/source/Rock/Rock.fbx");
+    terrainModel.load("renders/terrain/source/LP.obj");
 
     lavaParticles.emitterPos = CRATER_POS;
     lavaParticles.gravity    = glm::vec3(0.0f, -7.5f, 0.0f);
@@ -336,7 +338,7 @@ void drawScene(GLFWwindow* window) {
 
     // Akumulator emisji - zalezny od burst (ktory juz jest pomnozony przez magnitude)
     float lavaRate  = 40.0f + 350.0f * burst;
-    float smokeRate = 30.0f + 90.0f  * burst;
+    float smokeRate = 90.0f + 220.0f * burst;
     emitLavaAcc  += lavaRate  * simDt;
     emitSmokeAcc += smokeRate * simDt;
     int emitLava  = (int)emitLavaAcc;  emitLavaAcc  -= emitLava;
@@ -361,14 +363,19 @@ void drawScene(GLFWwindow* window) {
             0.30f,
             0.35f * cosf(t * 0.3f)
         );
+        // Wiatr - powolnie zmienia kierunek (sin po czasie). Dym dryfuje pod katem,
+        // ale slabszy - zeby slup dymu pozostal widoczny.
+        float windAngle = t * 0.18f;
+        glm::vec3 wind = glm::vec3(cosf(windAngle), 0.0f, sinf(windAngle)) * 0.55f;
+        smokeParticles.gravity = glm::vec3(0.0f, 1.4f, 0.0f) + wind;
         smokeParticles.emit(
             emitSmoke,
-            1.0f, 2.2f,
-            0.35f,
-            glm::vec4(0.45f, 0.42f, 0.40f, 0.55f),
-            glm::vec4(0.20f, 0.20f, 0.20f, 0.0f),
-            0.40f, 1.20f,
-            3.5f
+            1.2f, 2.6f,
+            0.45f,
+            glm::vec4(0.55f, 0.52f, 0.50f, 0.85f),  // jasniejszy i bardziej krycy start
+            glm::vec4(0.18f, 0.16f, 0.15f, 0.0f),
+            0.90f, 2.80f,                           // duzo wieksze kulki - widoczny slup
+            5.5f                                    // dluzsze zycie - gestszy slup
         );
     }
 
@@ -425,8 +432,9 @@ void drawScene(GLFWwindow* window) {
 
     glBindTexture(GL_TEXTURE_2D, texGround);
     glm::mat4 M(1.0f);
+    M = glm::scale(M, glm::vec3(TERRAIN_SCALE, TERRAIN_SCALE * 0.5f, TERRAIN_SCALE));
     glUniformMatrix4fv(spLambertTextured->u("M"), 1, false, glm::value_ptr(M));
-    Models::terrain.draw();
+    terrainModel.draw();
 
     glBindTexture(GL_TEXTURE_2D, texVolcano);
     M = glm::mat4(1.0f);

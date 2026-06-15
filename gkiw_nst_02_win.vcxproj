@@ -19,12 +19,10 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="allmodels.h" />
     <ClInclude Include="assimp_model.h" />
     <ClInclude Include="constants.h" />
     <ClInclude Include="lodepng.h" />
     <ClInclude Include="shaderprogram.h" />
-    <ClInclude Include="terrain.h" />
     <ClInclude Include="particles.h" />
     <ClInclude Include="stones.h" />
   </ItemGroup>
@@ -33,7 +31,6 @@
     <ClCompile Include="lodepng.cpp" />
     <ClCompile Include="main_file.cpp" />
     <ClCompile Include="shaderprogram.cpp" />
-    <ClCompile Include="terrain.cpp" />
     <ClCompile Include="particles.cpp" />
     <ClCompile Include="stones.cpp" />
   </ItemGroup>
