@@ -13,7 +13,7 @@ uniform vec3  lavaPos       = vec3(0,0,0);
 uniform vec4  lavaColor     = vec4(1.0, 0.45, 0.1, 1.0);
 uniform float lavaIntensity = 1.5;
 
-uniform vec3 ambient = vec3(0.18, 0.18, 0.22);
+uniform vec3 ambient = vec3(0.09, 0.09, 0.13);
 
 layout (location=0) in vec4 vertex;
 layout (location=1) in vec4 normal;
@@ -34,7 +34,7 @@ void main(void) {
     vec3  toLava = lavaPos - vPos.xyz;
     float dist   = length(toLava);
     float nlLava = clamp(dot(n, toLava/dist), 0.0, 1.0);
-    float atten  = 1.0 / (1.0 + 0.08*dist + 0.02*dist*dist);
+    float atten  = 1.0 / (1.0 + 0.04*dist + 0.008*dist*dist);
 
     i_light = ambient
             + sunColor.rgb  * nlSun
