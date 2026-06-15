@@ -26,16 +26,17 @@ Place, Fifth Floor, Boston, MA  02110 - 1301  USA
 #include <glm/gtc/matrix_transform.hpp>
 #include <stdlib.h>
 #include <stdio.h>
+#include <math.h>
 #include "constants.h"
 #include "allmodels.h"
 #include "lodepng.h"
 #include "shaderprogram.h"
 #include "assimp_model.h"
 
-// Stan kamery orbitalnej (współrzędne sferyczne)
-float cameraAngleX = 0.8f;  // kąt pionowy (pitch): 0=góra, PI=dół
-float cameraAngleY = 0.0f;  // kąt poziomy (yaw)
-float cameraRadius = 12.0f; // odległość od centrum sceny
+// Stan kamery orbitalnej (wspolrzedne sferyczne)
+float cameraAngleX = 0.8f;
+float cameraAngleY = 0.0f;
+float cameraRadius = 14.0f;
 
 // Stan myszy
 bool mousePressed = false;
@@ -43,11 +44,26 @@ double lastMouseX = 0.0;
 double lastMouseY = 0.0;
 
 // Tekstury
-GLuint texGround   = 0;
-GLuint texVolcano  = 0;
+GLuint texGround  = 0;
+GLuint texVolcano = 0;
+GLuint texRock    = 0;
 
 // Modele wczytywane przez Assimp
 AssimpModel volcanoModel;
+
+// Skala wulkanu (model jest znormalizowany do max wymiaru = 1)
+const float VOLCANO_SCALE = 5.0f;
+
+// Pozycje kamieni wokol wulkanu (x, z, skala, rotacja_y)
+struct RockPlacement { float x, z, scale, rotY; };
+static const RockPlacement rockPlacements[] = {
+    {  4.2f,  0.0f, 0.55f, 0.4f },
+    { -3.8f,  1.6f, 0.45f, 1.2f },
+    {  2.5f, -3.6f, 0.40f, 2.7f },
+    { -2.2f, -3.9f, 0.60f, 0.9f },
+    {  3.7f,  3.3f, 0.35f, 1.8f }
+};
+static const int rockCount = sizeof(rockPlacements) / sizeof(rockPlacements[0]);
 
 GLuint loadTexture(const char* filename) {
     GLuint tex;
@@ -102,8 +118,8 @@ void cursor_position_callback(GLFWwindow* window, double xpos, double ypos) {
 
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset) {
     cameraRadius -= (float)yoffset * 0.5f;
-    if (cameraRadius < 2.0f)  cameraRadius = 2.0f;
-    if (cameraRadius > 30.0f) cameraRadius = 30.0f;
+    if (cameraRadius < 3.0f)  cameraRadius = 3.0f;
+    if (cameraRadius > 40.0f) cameraRadius = 40.0f;
 }
 
 void initOpenGLProgram(GLFWwindow* window) {
@@ -117,6 +133,7 @@ void initOpenGLProgram(GLFWwindow* window) {
 
     texGround  = loadTexture("bricks_diffuse.png");
     texVolcano = loadTexture("volcano/textures/Volcano_AOAmbient_Occlusion.png");
+    texRock    = loadTexture("bricks_diffuse.png");
 
     volcanoModel.load("volcano/source/Volcano_Lowpoly.fbx");
 }
@@ -128,7 +145,9 @@ void freeOpenGLProgram(GLFWwindow* window) {
 void drawScene(GLFWwindow* window) {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    // Pozycja kamery ze współrzędnych sferycznych
+    float t = (float)glfwGetTime();
+
+    // Kamera ze wspolrzednych sferycznych
     float camX = cameraRadius * sinf(cameraAngleX) * sinf(cameraAngleY);
     float camY = cameraRadius * cosf(cameraAngleX);
     float camZ = cameraRadius * sinf(cameraAngleX) * cosf(cameraAngleY);
@@ -141,18 +160,38 @@ void drawScene(GLFWwindow* window) {
     glm::mat4 P = glm::perspective(glm::radians(50.0f), (float)w / h, 0.1f, 500.0f);
     glm::mat4 V = glm::lookAt(
         glm::vec3(camX, camY, camZ),
-        glm::vec3(0.0f, 0.0f, 0.0f),
+        glm::vec3(0.0f, 1.5f, 0.0f),
         glm::vec3(0.0f, 1.0f, 0.0f)
     );
 
-    // Kierunek slonca w przestrzeni widoku (staly w przestrzeni swiata)
-    glm::vec4 sunDir = glm::normalize(V * glm::vec4(1.0f, 2.0f, 1.0f, 0.0f));
+    // === SWIATLA (wszystko przeliczone do przestrzeni widoku) ===
+    // Slonce - kierunek
+    glm::vec4 sunDir   = glm::normalize(V * glm::vec4(0.6f, 1.0f, 0.4f, 0.0f));
+    glm::vec4 sunColor = glm::vec4(1.0f, 0.95f, 0.85f, 1.0f);
 
-    // --- Teren ---
+    // Lawa - pozycja punktowego zrodla w kraterze
+    glm::vec3 lavaWorld(0.0f, VOLCANO_SCALE * 0.95f, 0.0f);
+    glm::vec3 lavaView  = glm::vec3(V * glm::vec4(lavaWorld, 1.0f));
+
+    // Pulsowanie lawy - lekka modulacja intensywnosci i koloru
+    float pulse = 0.85f + 0.15f * sinf(t * 2.3f) + 0.10f * sinf(t * 5.7f);
+    glm::vec4 lavaColor = glm::vec4(1.0f, 0.45f, 0.10f, 1.0f);
+    float lavaIntensity = 1.8f * pulse;
+
+    // Helper do ustawiania uniformow swiatel (te same dla obu programow)
+    auto setLightUniforms = [&](ShaderProgram* sp) {
+        glUniform4fv(sp->u("sunDir"),       1, glm::value_ptr(sunDir));
+        glUniform4fv(sp->u("sunColor"),     1, glm::value_ptr(sunColor));
+        glUniform3fv(sp->u("lavaPos"),      1, glm::value_ptr(lavaView));
+        glUniform4fv(sp->u("lavaColor"),    1, glm::value_ptr(lavaColor));
+        glUniform1f (sp->u("lavaIntensity"), lavaIntensity);
+    };
+
+    // === TEREN ===
     spLambertTextured->use();
     glUniformMatrix4fv(spLambertTextured->u("P"), 1, false, glm::value_ptr(P));
     glUniformMatrix4fv(spLambertTextured->u("V"), 1, false, glm::value_ptr(V));
-    glUniform4fv(spLambertTextured->u("lightDir"), 1, glm::value_ptr(sunDir));
+    setLightUniforms(spLambertTextured);
 
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, texGround);
@@ -162,16 +201,24 @@ void drawScene(GLFWwindow* window) {
     glUniformMatrix4fv(spLambertTextured->u("M"), 1, false, glm::value_ptr(M));
     Models::terrain.draw();
 
-    // --- Wulkan (model FBX z Assimp) - DIAGNOSTYKA: jaskrawy kolor bez tekstury ---
-    spLambert->use();
-    glUniformMatrix4fv(spLambert->u("P"), 1, false, glm::value_ptr(P));
-    glUniformMatrix4fv(spLambert->u("V"), 1, false, glm::value_ptr(V));
-    glUniform4fv(spLambert->u("lightDir"), 1, glm::value_ptr(sunDir));
+    // === WULKAN (FBX z Assimp) - oteksturowany ===
+    glBindTexture(GL_TEXTURE_2D, texVolcano);
     M = glm::mat4(1.0f);
-    M = glm::scale(M, glm::vec3(5.0f)); // skala po normalizacji - max wymiar 5 jednostek
-    glUniformMatrix4fv(spLambert->u("M"), 1, false, glm::value_ptr(M));
-    glUniform4f(spLambert->u("color"), 1.0f, 0.0f, 1.0f, 1.0f); // magenta - jaskrawe, latwo zauwazyc
+    M = glm::scale(M, glm::vec3(VOLCANO_SCALE));
+    glUniformMatrix4fv(spLambertTextured->u("M"), 1, false, glm::value_ptr(M));
     volcanoModel.draw();
+
+    // === KAMIENIE wokol wulkanu ===
+    glBindTexture(GL_TEXTURE_2D, texRock);
+    for (int i = 0; i < rockCount; i++) {
+        const RockPlacement& r = rockPlacements[i];
+        M = glm::mat4(1.0f);
+        M = glm::translate(M, glm::vec3(r.x, r.scale * 0.6f, r.z));
+        M = glm::rotate   (M, r.rotY, glm::vec3(0.0f, 1.0f, 0.0f));
+        M = glm::scale    (M, glm::vec3(r.scale));
+        glUniformMatrix4fv(spLambertTextured->u("M"), 1, false, glm::value_ptr(M));
+        Models::rock.draw();
+    }
 
     glfwSwapBuffers(window);
 }
@@ -207,7 +254,6 @@ int main(void)
 
     glfwSetTime(0);
     while (!glfwWindowShouldClose(window)) {
-        glfwSetTime(0);
         drawScene(window);
         glfwPollEvents();
     }
