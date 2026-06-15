@@ -68,8 +68,19 @@ StoneSystem    stoneSystem;
 
 float eruptionCycleLen = 4.5f;
 float prevBurst    = 0.0f;
+float prevPhase    = 0.0f;
 float emitLavaAcc  = 0.0f;
 float emitSmokeAcc = 0.0f;
+float eruptionMagnitude = 1.0f;   // losowane per cykl: 0.6..1.4
+
+// === PRESETY KAMERY ===
+struct CamPreset { float pitch, yaw, radius; };
+static const CamPreset camPresets[] = {
+    { 0.85f, 0.0f,  14.0f },   // 1: overview - dalej, lekko z gory
+    { 1.20f, 0.6f,   7.0f },   // 2: blisko, niski kat, prawie zbocza
+    { 0.30f, 0.0f,  10.0f }    // 3: prawie z gory na krater
+};
+static const int camPresetCount = sizeof(camPresets) / sizeof(camPresets[0]);
 
 // === KAMIENIE SPOCZYNKOWE ===
 struct RockPlacement { float x, z, scale, rotY; };
@@ -178,6 +189,11 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
         cameraRadius = CAM_RADIUS_DEFAULT;
     } else if (key == GLFW_KEY_SPACE) {
         paused = !paused;
+    } else if (key >= GLFW_KEY_1 && key <= GLFW_KEY_1 + camPresetCount - 1) {
+        const CamPreset& cp = camPresets[key - GLFW_KEY_1];
+        cameraAngleX = cp.pitch;
+        cameraAngleY = cp.yaw;
+        cameraRadius = cp.radius;
     }
 }
 
@@ -216,9 +232,11 @@ void initOpenGLProgram(GLFWwindow* window) {
     lavaParticles.emitterPos = CRATER_POS;
     lavaParticles.gravity    = glm::vec3(0.0f, -7.5f, 0.0f);
     lavaParticles.additive   = true;
+    lavaParticles.texture    = texEmissive;  // glowing sprite
 
-    smokeParticles.gravity    = glm::vec3(0.0f, 0.8f, 0.0f);
-    smokeParticles.additive   = false;
+    smokeParticles.gravity   = glm::vec3(0.0f, 0.8f, 0.0f);
+    smokeParticles.additive  = false;
+    smokeParticles.texture   = 0;            // soft circle
 
     stoneSystem.emitterPos = CRATER_POS;
     stoneSystem.gravity    = glm::vec3(0.0f, -9.81f, 0.0f);
@@ -300,14 +318,23 @@ void drawScene(GLFWwindow* window) {
 
     // === FAZA ERUPCJI ===
     float phase = fmodf(t, eruptionCycleLen) / eruptionCycleLen;
-    float burst = computeBurst(phase);
+
+    // Nowy cykl - losowa intensywnosc erupcji
+    if (phase < prevPhase) {
+        eruptionMagnitude = 0.6f + 0.8f * ((float)rand() / (float)RAND_MAX);
+    }
+    prevPhase = phase;
+
+    float burst = computeBurst(phase) * eruptionMagnitude;
 
     if (prevBurst < 0.7f && burst >= 0.7f) {
-        stoneSystem.erupt(8, 7.0f, 11.0f, 0.5f, 0.20f, 0.40f, 4.5f);
+        int stoneCount = (int)(6 + 6 * eruptionMagnitude);
+        float stoneSpeedMax = 9.0f + 3.0f * eruptionMagnitude;
+        stoneSystem.erupt(stoneCount, 6.0f, stoneSpeedMax, 0.5f, 0.20f, 0.40f, 4.5f);
     }
     prevBurst = burst;
 
-    // Akumulator emisji
+    // Akumulator emisji - zalezny od burst (ktory juz jest pomnozony przez magnitude)
     float lavaRate  = 40.0f + 350.0f * burst;
     float smokeRate = 30.0f + 90.0f  * burst;
     emitLavaAcc  += lavaRate  * simDt;
@@ -323,7 +350,7 @@ void drawScene(GLFWwindow* window) {
             0.55f,
             glm::vec4(1.0f, 0.85f, 0.25f, 1.0f),
             glm::vec4(0.7f, 0.10f, 0.02f, 0.0f),
-            0.16f, 0.04f,
+            0.35f, 0.10f,   // wieksze - tekstura zniwsi sie z odlegloscia, dym musi rozmnozyc
             1.6f
         );
     }
@@ -445,7 +472,7 @@ int main(void) {
         exit(EXIT_FAILURE);
     }
 
-    window = glfwCreateWindow(800, 600, "Wulkan 3D  [Space=pauza  R=reset  WSAD/strzalki=kamera  +/-=zoom  Esc=wyjscie]", NULL, NULL);
+    window = glfwCreateWindow(800, 600, "Wulkan 3D  [Space=pauza  R=reset  1/2/3=ujecia  WSAD/strzalki=kamera  +/-=zoom  Esc=wyjscie]", NULL, NULL);
 
     if (!window) {
         fprintf(stderr, "Nie można utworzyć okna.\n");

@@ -22,6 +22,7 @@ public:
     glm::vec3 emitterPos = glm::vec3(0.0f);
     glm::vec3 gravity    = glm::vec3(0.0f, -4.0f, 0.0f);
     bool      additive   = true;
+    GLuint    texture    = 0;   // 0 = bez tekstury (soft circle), inaczej point sprite
 
     ParticleSystem();
     ~ParticleSystem();

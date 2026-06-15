@@ -126,6 +126,21 @@ void ParticleSystem::draw() {
 
     ensureCapacity(n);
 
+    // Tekstura point sprite (opcjonalna). Aktualnie zwiazany program musi zawierac
+    // uniformy "useTexture" oraz "tex".
+    GLint curProg = 0;
+    glGetIntegerv(GL_CURRENT_PROGRAM, &curProg);
+    GLint locUseTex = glGetUniformLocation(curProg, "useTexture");
+    if (texture != 0) {
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, texture);
+        if (locUseTex >= 0) glUniform1i(locUseTex, 1);
+        GLint locTex = glGetUniformLocation(curProg, "tex");
+        if (locTex >= 0) glUniform1i(locTex, 0);
+    } else {
+        if (locUseTex >= 0) glUniform1i(locUseTex, 0);
+    }
+
     glBindVertexArray(vao);
     glBindBuffer(GL_ARRAY_BUFFER, vboPos);
     glBufferSubData(GL_ARRAY_BUFFER, 0, n * sizeof(glm::vec3), stagePos.data());
