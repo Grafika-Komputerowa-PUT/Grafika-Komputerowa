@@ -1,0 +1,69 @@
+Przyjmij rolę doświadczonego prowadzącego przedmiot Grafika Komputerowa na studiach informatycznych.
+
+Twoim zadaniem jest przygotowanie szczegółowego planu realizacji projektu BEZ proponowania rozwiązań wykraczających poza zakres typowych laboratoriów z OpenGL i GLM. Na podstawie planu nastepnie tworzony bedzie kod
+
+Temat projektu: „Wulkan. Trójwymiarowy, eksplodujący wulkan. Na scenie powinien znajdować się trójwymiarowy wulkan, którego co chwila wydobywa się lawa, dym i kamienie. Do lawy i dymu można użyć systemu cząstek. Scenę powinno dać się oglądać z dowolnego punktu. Eksplozji powinny również towarzyszyć odpowiednie efekty świetlne.”
+
+Wymagania projektowe:
+Środowisko:
+OpenGL (modern OpenGL)
+GLM
+Visual Studio 2019+ lub Linux + GCC
+Ważne: Obecnie znajdujesz sie w sciezce gdzie utworzony jest prosty projekt. To jest po to zebys wiedzial jak ma wygladac struktura plikow i folderow, pracuj na tym projekcie, jak cos jest zbednego - usun.
+
+Dopuszczalne jest wykorzystanie:
+Assimp do wczytywania modeli 3D,
+biblioteki do wczytywania tekstur (np. stb_image),
+modeli pobranych z Internetu zgodnie z wymaganiami prowadzącego.
+
+Należy spełnić wszystkie wymagania prowadzącego:
+
+więcej niż 4 obiekty 3D na scenie,
+możliwość poruszania kamerą,
+wszystkie obiekty oteksturowane,
+wykorzystanie minimum dwóch różnych tekstur,
+minimum dwa źródła światła,
+widoczne cieniowanie,
+nietrywialne modele 3D,
+własny kod renderowania,
+używanie VAO/VBO/EBO oraz shaderów,
+Bardzo ważne: zabronione funkcje to: (glBegin, glEnd itd.).
+
+Projekt ma wyglądać jak projekt studencki realizowany na przedmiocie Grafika Komputerowa.
+
+Nie proponuj:
+zaawansowanych technik renderingu,PBR,ray tracingu,teselacji,geometry shaderów,compute shaderów,HDR,SSAO,volumetric lighting,zaawansowanych silników fizycznych,rozwiązań wykraczających poza standardowy zakres kursu OpenGL.
+
+Jeżeli jakaś funkcjonalność mogłaby zostać wykonana prostszą metodą, zawsze wybierz prostszą metodę.
+Zakładaj, że celem jest uzyskanie dobrej oceny przy możliwie małej złożoności projektu.
+
+4. Plan realizacji krok po kroku
+Przygotuj kolejność prac od początku do końca. Zadbaj o to, aby każdy kolejny etap bazował na poprzednim.
+
+5. Projekt sceny
+
+Opisz:
+jakie obiekty powinny znaleźć się na scenie,
+które modele można pobrać z Internetu,
+które modele warto wykonać samodzielnie,
+jakie tekstury będą potrzebne.
+
+Wskaż również:
+
+sugerowany format pliku (OBJ, FBX, GLTF itp.),
+czy Assimp bezproblemowo go obsłuży,
+które formaty będą najwygodniejsze dla projektu.
+6. System erupcji wulkanu
+Przedstaw prosty studencki sposób realizacji: lawy, dymu,kamieni,animacji erupcji, efektów świetlnych.
+
+7. Oświetlenie
+
+Przedstaw najprostsze poprawne rozwiązanie spełniające wymagania prowadzącego:
+
+źródło światła głównego,
+światło związane z lawą,
+sposób uzyskania widocznego cieniowania.
+
+Uwzględnij wyłącznie techniki omawiane zazwyczaj na podstawowym kursie OpenGL.
+
+Przez całą odpowiedź pilnuj, aby projekt pozostał możliwie prosty, dla studentów oraz zgodny z zakresem typowego kursu Grafiki Komputerowej opartego na OpenGL, GLM i Assim
