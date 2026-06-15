@@ -32,6 +32,8 @@ Place, Fifth Floor, Boston, MA  02110 - 1301  USA
 #include "lodepng.h"
 #include "shaderprogram.h"
 #include "assimp_model.h"
+#include "particles.h"
+#include "stones.h"
 
 // Stan kamery orbitalnej (wspolrzedne sferyczne)
 float cameraAngleX = 0.8f;
@@ -55,7 +57,22 @@ AssimpModel rockModel;
 // Skala wulkanu (model jest znormalizowany do max wymiaru = 1)
 const float VOLCANO_SCALE = 5.0f;
 
-// Pozycje kamieni wokol wulkanu (x, z, skala, rotacja_y)
+// Pozycja krateru (z ktorej startuja czastki/kamienie i bije swiatlo lawy)
+const glm::vec3 CRATER_POS = glm::vec3(0.0f, VOLCANO_SCALE * 0.95f, 0.0f);
+
+// Systemy erupcji
+ParticleSystem lavaParticles;
+ParticleSystem smokeParticles;
+StoneSystem    stoneSystem;
+
+// Stan erupcji - faza cyklu (0..1) i akumulatory emisji
+float eruptionCycleLen = 4.5f;
+float prevBurst = 0.0f;
+float emitLavaAcc  = 0.0f;
+float emitSmokeAcc = 0.0f;
+double lastFrameTime = 0.0;
+
+// Kamienie spoczywajace wokol wulkanu (x, z, skala, rotacja_y)
 struct RockPlacement { float x, z, scale, rotY; };
 static const RockPlacement rockPlacements[] = {
     {  4.4f,  0.2f, 0.90f, 0.4f },
@@ -140,18 +157,85 @@ void initOpenGLProgram(GLFWwindow* window) {
 
     volcanoModel.load("volcano/source/Volcano_Lowpoly.fbx");
     rockModel.load   ("renders/rock-low-polygon/source/Rock/Rock.fbx");
+
+    // Systemy erupcji
+    lavaParticles.emitterPos = CRATER_POS;
+    lavaParticles.gravity    = glm::vec3(0.0f, -7.5f, 0.0f);
+    lavaParticles.additive   = true;
+
+    smokeParticles.emitterPos = CRATER_POS + glm::vec3(0.0f, 0.3f, 0.0f);
+    smokeParticles.gravity    = glm::vec3(0.0f, 0.8f, 0.0f);  // dym sie unosi
+    smokeParticles.additive   = false;
+
+    stoneSystem.emitterPos = CRATER_POS;
+    stoneSystem.gravity    = glm::vec3(0.0f, -9.81f, 0.0f);
 }
 
 void freeOpenGLProgram(GLFWwindow* window) {
     freeShaders();
 }
 
+// Gaussowski "burst" eksplozji w cyklu - peak okolo phase=0.25
+static float computeBurst(float phase) {
+    float x = (phase - 0.25f) * 4.0f;
+    return expf(-x * x);
+}
+
 void drawScene(GLFWwindow* window) {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    float t = (float)glfwGetTime();
+    double now = glfwGetTime();
+    float t  = (float)now;
+    float dt = (float)(now - lastFrameTime);
+    if (dt > 0.1f) dt = 0.1f; // zabezpieczenie pierwszej klatki / lagow
+    lastFrameTime = now;
 
-    // Kamera ze wspolrzednych sferycznych
+    // === FAZA ERUPCJI ===
+    float phase = fmodf(t, eruptionCycleLen) / eruptionCycleLen;
+    float burst = computeBurst(phase);
+
+    // Wyrzut kamieni - przy przekroczeniu progu erupcji w gore (peak ok. phase=0.25)
+    if (prevBurst < 0.7f && burst >= 0.7f) {
+        stoneSystem.erupt(8, 7.0f, 11.0f, 0.5f, 0.20f, 0.40f, 4.5f);
+    }
+    prevBurst = burst;
+
+    // Emisja czastek z akumulatorem (frakcyjne ilosci klatka po klatce)
+    float lavaRate  = 40.0f + 350.0f * burst;   // czastki/sek
+    float smokeRate = 30.0f + 90.0f  * burst;
+    emitLavaAcc  += lavaRate  * dt;
+    emitSmokeAcc += smokeRate * dt;
+    int emitLava  = (int)emitLavaAcc;  emitLavaAcc  -= emitLava;
+    int emitSmoke = (int)emitSmokeAcc; emitSmokeAcc -= emitSmoke;
+
+    if (emitLava > 0) {
+        lavaParticles.emit(
+            emitLava,
+            3.5f, 7.5f,          // predkosc
+            0.55f,               // kat stozka
+            glm::vec4(1.0f, 0.85f, 0.25f, 1.0f),  // start: jasnozolty
+            glm::vec4(0.7f, 0.10f, 0.02f, 0.0f),  // koniec: ciemna czerwien zanika
+            0.16f, 0.04f,
+            1.6f
+        );
+    }
+    if (emitSmoke > 0) {
+        smokeParticles.emit(
+            emitSmoke,
+            1.0f, 2.2f,
+            0.35f,
+            glm::vec4(0.45f, 0.42f, 0.40f, 0.55f),
+            glm::vec4(0.20f, 0.20f, 0.20f, 0.0f),
+            0.40f, 1.20f,
+            3.5f
+        );
+    }
+
+    lavaParticles.update(dt);
+    smokeParticles.update(dt);
+    stoneSystem.update(dt);
+
+    // === KAMERA ===
     float camX = cameraRadius * sinf(cameraAngleX) * sinf(cameraAngleY);
     float camY = cameraRadius * cosf(cameraAngleX);
     float camZ = cameraRadius * sinf(cameraAngleX) * cosf(cameraAngleY);
@@ -168,21 +252,17 @@ void drawScene(GLFWwindow* window) {
         glm::vec3(0.0f, 1.0f, 0.0f)
     );
 
-    // === SWIATLA (wszystko przeliczone do przestrzeni widoku) ===
-    // Slonce - kierunek
+    // === SWIATLA (w przestrzeni widoku) ===
     glm::vec4 sunDir   = glm::normalize(V * glm::vec4(0.6f, 1.0f, 0.4f, 0.0f));
     glm::vec4 sunColor = glm::vec4(1.0f, 0.95f, 0.85f, 1.0f);
 
-    // Lawa - pozycja punktowego zrodla w kraterze
-    glm::vec3 lavaWorld(0.0f, VOLCANO_SCALE * 0.95f, 0.0f);
-    glm::vec3 lavaView  = glm::vec3(V * glm::vec4(lavaWorld, 1.0f));
+    glm::vec3 lavaView = glm::vec3(V * glm::vec4(CRATER_POS, 1.0f));
 
-    // Pulsowanie lawy - lekka modulacja intensywnosci i koloru
-    float pulse = 0.85f + 0.15f * sinf(t * 2.3f) + 0.10f * sinf(t * 5.7f);
-    glm::vec4 lavaColor = glm::vec4(1.0f, 0.45f, 0.10f, 1.0f);
-    float lavaIntensity = 1.8f * pulse;
+    // Intensywnosc lawy: tlo + drobny szum + duzy peak przy erupcji
+    float flicker = 0.10f * sinf(t * 7.3f) + 0.05f * sinf(t * 17.1f);
+    glm::vec4 lavaColor   = glm::vec4(1.0f, 0.45f, 0.10f, 1.0f);
+    float lavaIntensity   = 0.9f + flicker + 3.5f * burst;
 
-    // Helper do ustawiania uniformow swiatel (te same dla obu programow)
     auto setLightUniforms = [&](ShaderProgram* sp) {
         glUniform4fv(sp->u("sunDir"),       1, glm::value_ptr(sunDir));
         glUniform4fv(sp->u("sunColor"),     1, glm::value_ptr(sunColor));
@@ -191,28 +271,29 @@ void drawScene(GLFWwindow* window) {
         glUniform1f (sp->u("lavaIntensity"), lavaIntensity);
     };
 
-    // === TEREN ===
+    // === SCENA - obiekty oteksturowane ===
     spLambertTextured->use();
     glUniformMatrix4fv(spLambertTextured->u("P"), 1, false, glm::value_ptr(P));
     glUniformMatrix4fv(spLambertTextured->u("V"), 1, false, glm::value_ptr(V));
     setLightUniforms(spLambertTextured);
 
     glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, texGround);
     glUniform1i(spLambertTextured->u("tex"), 0);
 
+    // Teren
+    glBindTexture(GL_TEXTURE_2D, texGround);
     glm::mat4 M = glm::mat4(1.0f);
     glUniformMatrix4fv(spLambertTextured->u("M"), 1, false, glm::value_ptr(M));
     Models::terrain.draw();
 
-    // === WULKAN (FBX z Assimp) - oteksturowany ===
+    // Wulkan
     glBindTexture(GL_TEXTURE_2D, texVolcano);
     M = glm::mat4(1.0f);
     M = glm::scale(M, glm::vec3(VOLCANO_SCALE));
     glUniformMatrix4fv(spLambertTextured->u("M"), 1, false, glm::value_ptr(M));
     volcanoModel.draw();
 
-    // === KAMIENIE wokol wulkanu (FBX z Assimp) ===
+    // Spoczynkowe kamienie
     glBindTexture(GL_TEXTURE_2D, texRock);
     for (int i = 0; i < rockCount; i++) {
         const RockPlacement& r = rockPlacements[i];
@@ -223,6 +304,19 @@ void drawScene(GLFWwindow* window) {
         glUniformMatrix4fv(spLambertTextured->u("M"), 1, false, glm::value_ptr(M));
         rockModel.draw();
     }
+
+    // Lecace kamienie - ta sama tekstura, ten sam shader
+    stoneSystem.drawAll(spLambertTextured, rockModel);
+
+    // === CZASTKI ===
+    spParticle->use();
+    glUniformMatrix4fv(spParticle->u("P"), 1, false, glm::value_ptr(P));
+    glUniformMatrix4fv(spParticle->u("V"), 1, false, glm::value_ptr(V));
+    glUniform1f(spParticle->u("pointScale"), (float)h * 1.2f);
+
+    // Dym pierwszy (zwykly alpha-blending), potem lawa (additive na wierzchu)
+    smokeParticles.draw();
+    lavaParticles.draw();
 
     glfwSwapBuffers(window);
 }
@@ -257,6 +351,7 @@ int main(void)
     initOpenGLProgram(window);
 
     glfwSetTime(0);
+    lastFrameTime = glfwGetTime();
     while (!glfwWindowShouldClose(window)) {
         drawScene(window);
         glfwPollEvents();

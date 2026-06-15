@@ -31,6 +31,8 @@
     <ClInclude Include="teapot.h" />
     <ClInclude Include="terrain.h" />
     <ClInclude Include="torus.h" />
+    <ClInclude Include="particles.h" />
+    <ClInclude Include="stones.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="assimp_model.cpp" />
@@ -43,6 +45,8 @@
     <ClCompile Include="teapot.cpp" />
     <ClCompile Include="terrain.cpp" />
     <ClCompile Include="torus.cpp" />
+    <ClCompile Include="particles.cpp" />
+    <ClCompile Include="stones.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="f_constant.glsl" />
@@ -55,6 +59,8 @@
     <None Include="v_lambert.glsl" />
     <None Include="v_lamberttextured.glsl" />
     <None Include="v_textured.glsl" />
+    <None Include="v_particle.glsl" />
+    <None Include="f_particle.glsl" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>
