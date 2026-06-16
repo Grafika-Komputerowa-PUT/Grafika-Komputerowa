@@ -1,0 +1,96 @@
+# Build output
+Debug/
+Release/
+x64/
+x86/
+[Aa]rm/
+[Aa]rm64/
+bld/
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+
+# Visual Studio files
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+*.vcxproj.filters
+*.VC.db
+*.VC.opendb
+
+# Solution & project (keep .sln and .vcxproj, ignore generated)
+*.sdf
+*.opensdf
+*.cachefile
+*.VC.VC.opendb
+
+# Compiled output
+*.exe
+*.dll
+*.lib
+*.pdb
+*.ilk
+*.exp
+*.iobj
+*.ipdb
+*.idb
+*.tlog/
+
+# Precompiled headers
+*.pch
+*.gch
+
+# CMake (if used alongside VS)
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+CMakeSettings.json
+
+# NuGet
+packages/
+*.nupkg
+
+# Installer/publish output
+[Pp]ublish/
+PublishScripts/
+
+# Crash dumps
+*.dmp
+
+# Test results
+TestResults/
+*.trx
+
+# Benchmark results
+BenchmarkDotNet.Artifacts/
+
+# OS
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+.DS_Store
+
+# External libraries (local copies)
+glew-2.3.1/
+glfw-3.4.bin/
+glm/
+volcano/
+
+# Generated/optional VS files
+*.vcxproj.filters
+*.vcxproj.user
+*.sln
+
+# Textures & assets (optional - remove if you want to track them)
+*.png
+*.jpg
+*.jpeg
+*.bmp
+*.tga
+
+# License & legal (optional)
+GPL.txt
+LICENSE.md
